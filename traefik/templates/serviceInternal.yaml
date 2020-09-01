@@ -1,0 +1,106 @@
+
+{{- if .Values.serviceInternal.enabled -}}
+
+{{ $tcpInternalPorts := dict }}
+{{ $udpInternalPorts := dict }}
+{{- range $name, $config := .Values.ports }}
+  {{- if and (eq (toString $config.protocol) "UDP") ($config.internal) }}
+    {{ $_ := set $udpInternalPorts $name $config }}
+  {{- else if ($config.internal) }}
+    {{ $_ := set $tcpInternalPorts $name $config }}
+  {{- end }}
+{{- end }}
+
+apiVersion: v1
+kind: List
+items:
+{{- if  $tcpInternalPorts }}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ template "traefik.fullname" . }}-internal
+      labels:
+        app.kubernetes.io/name: {{ template "traefik.name" . }}
+        helm.sh/chart: {{ template "traefik.chart" . }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+      {{- with .Values.serviceInternal.annotations }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- $type := default "LoadBalancer" .Values.serviceInternal.type }}
+      type: {{ $type }}
+      {{- with .Values.serviceInternal.spec }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      selector:
+        app.kubernetes.io/name: {{ template "traefik.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+      {{- range $name, $config := $tcpInternalPorts }}
+      - port: {{ default $config.port $config.exposedPort }}
+        name: {{ $name }}
+        targetPort: {{ $name | quote }}
+        protocol: {{ default "TCP" $config.protocol | quote }}
+        {{- if $config.nodePort }}
+        nodePort: {{ $config.nodePort }}
+        {{- end }}
+      {{- end }}
+      {{- if eq $type "LoadBalancer" }}
+      {{- with .Values.serviceInternal.loadBalancerSourceRanges }}
+      loadBalancerSourceRanges:
+      {{- toYaml . | nindent 6 }}
+      {{- end -}}
+      {{- end -}}
+      {{- with .Values.serviceInternal.externalIPs }}
+      externalIPs:
+      {{- toYaml . | nindent 6 }}
+      {{- end -}}
+{{- end }}
+
+{{- if  $udpInternalPorts }}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ template "traefik.fullname" . }}-internal-udp
+      labels:
+        app.kubernetes.io/name: {{ template "traefik.name" . }}
+        helm.sh/chart: {{ template "traefik.chart" . }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+      {{- with .Values.serviceInternal.annotations }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- $type := default "LoadBalancer" .Values.serviceInternal.type }}
+      type: {{ $type }}
+      {{- with .Values.serviceInternal.spec }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      selector:
+        app.kubernetes.io/name: {{ template "traefik.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+      {{- range $name, $config := $udpInternalPorts }}
+      - port: {{ default $config.port $config.exposedPort }}
+        name: {{ $name }}
+        targetPort: {{ $name | quote }}
+        protocol: {{ default "UDP" $config.protocol | quote }}
+        {{- if $config.nodePort }}
+        nodePort: {{ $config.nodePort }}
+        {{- end }}
+      {{- end }}
+      {{- if eq $type "LoadBalancer" }}
+      {{- with .Values.serviceInternal.loadBalancerSourceRanges }}
+      loadBalancerSourceRanges:
+      {{- toYaml . | nindent 6 }}
+      {{- end -}}
+      {{- end -}}
+      {{- with .Values.serviceInternal.externalIPs }}
+      externalIPs:
+      {{- toYaml . | nindent 6 }}
+      {{- end -}}
+{{- end }}
+{{- end }}

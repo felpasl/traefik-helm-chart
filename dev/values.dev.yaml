@@ -1,0 +1,149 @@
+
+# Default values for Traefik
+image:
+  name: traefik
+  tag: 2.2.8
+  pullPolicy: IfNotPresent
+
+deployment:
+  # Additional pod annotations (e.g. for mesh injection or prometheus scraping)
+  podAnnotations: 
+      # middleware redirect
+      traefik.http.middlewares.r-https.redirectscheme.scheme: https
+      
+      # global redirect to https
+      traefik.http.routers.redirs.rule: hostregexp(`{host:.+}`)
+      traefik.http.routers.redirs.entrypoints: web
+      traefik.http.routers.redirs.middlewares: r-https
+
+ingressRoute:
+  dashboard:
+    enabled: false
+ports:
+  traefik:
+    expose: false
+  internal:    
+    port: 5000
+    # hostPort: 8000
+    internal: true
+    expose: false
+    exposedPort: 5000
+    # The port protocol (TCP/UDP)
+    protocol: TCP
+    # Use nodeport if set. This is useful if you have configured Traefik in a
+    # LoadBalancer
+    # nodePort: 32080
+    # Port Redirections
+    # Added in 2.2, you can make permanent redirects via entrypoints.
+    # https://docs.traefik.io/routing/entrypoints/#redirection
+    # redirectTo: websecure
+globalArguments:
+  - "--log.level=DEBUG"
+  - "--tracing.jaeger.collector.endpoint=http://linkerd-jaeger.linkerd:14268/api/traces?format=jaeger.thrift"
+  - "--tracing.jaeger.propagation=b3"
+  - "--certificatesresolvers.myresolver.acme.tlschallenge"
+  - "--certificatesresolvers.myresolver.acme.email=felipe.lambert@globalweb.cloud"
+  - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
+  # Please note that this is the staging Let's Encrypt server.
+  # Once you get things working, you should remove that whole line altogether.
+  #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+persistence:
+  enabled: true
+#  existingClaim: ""
+  accessMode: ReadWriteOnce
+  size: 1G
+  storageClass: csi-nas
+  annotations:
+    volume.beta.kubernetes.io/storage-class: nfs-rw
+  path: /data
+
+podSecurityContext: null
+
+acme:
+  keyType: RSA4096
+  enabled: true
+  email: admin@example.com
+  onHostRule: true
+  staging: true
+  ## Specify a custom ACME server endpoint
+  ## Optional
+  # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+  logging: false
+  # Configure a Let's Encrypt certificate to be managed by default.
+  # This is the only way to request wildcard certificates (works only with dns challenge).
+
+  ## ACME challenge type: "tls-sni-01", "tls-alpn-01", "http-01" or "dns-01"
+  ## Note that "tls-sni-01" has been DEPRECATED.
+  challengeType: tls-alpn-01
+  ## Configure dnsProvider to perform domain verification using dns challenge
+  ## Applicable only if using the dns-01 challenge type
+  delayBeforeCheck: 0
+  resolvers: []
+    # - 1.1.1.1:53
+    # - 8.8.8.8:53
+  ## Configure the endpoint used for the HTTP challenge
+  ## Applicable only if using the http-01 challenge type
+  httpChallenge:
+    entrypoint: http
+  ## Save ACME certs to a persistent volume.
+  ## WARNING: If you do not do this and you did not have configured
+  ## a kvprovider, you will re-request certs every time a pod (re-)starts
+  ## and you WILL be rate limited!
+  persistence:
+    enabled: true
+    annotations: 
+      volume.beta.kubernetes.io/storage-class: nfs-rw
+    ## acme data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    storageClass: csi-nas
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    ## A manually managed Persistent Volume Claim
+    ## Requires persistence.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    ##
+    # existingClaim:
+    
+
+
+# Options for the main traefik service, where the entrypoints traffic comes
+# from.
+service:
+  enabled: true
+  type: LoadBalancer
+  # Additional annotations (e.g. for cloud provider specific config)
+  annotations: 
+    kubernetes.io/elb.class: union
+    kubernetes.io/session-affinity-mode: SOURCE_IP
+    kubernetes.io/elb.enterpriseID: 04c1d59a2b8c40a99f076ab0673d6997
+    kubernetes.io/elb.autocreate: '{"type":"public","bandwidth_name":"cce-bandwidth-1551163379627","bandwidth_chargemode":"bandwidth","bandwidth_size":1,"bandwidth_sharetype":"PER","eip_type":"5_bgp","name":"ELB-CCE-DEV"}'
+
+  spec: 
+    externalTrafficPolicy: Local
+
+serviceInternal:
+  enabled: true
+  type: LoadBalancer
+  # Additional annotations (e.g. for cloud provider specific config)
+  annotations: 
+    kubernetes.io/elb.class: union
+    kubernetes.io/elb.enterpriseID: 04c1d59a2b8c40a99f076ab0673d6997
+    kubernetes.io/elb.autocreate: '{"type":"inner", "name": "ELB-CCE-DEV-INERNAL"}'
+
+  # Additional entries here will be added to the service spec. Cannot contains
+  # type, selector or ports entries.
+  spec: {}
+    # externalTrafficPolicy: Cluster
+    # loadBalancerIP: "1.2.3.4"
+    # clusterIP: "2.3.4.5"
+  loadBalancerSourceRanges: []
+    # - 192.168.0.1/32
+    # - 172.16.0.0/16
+  externalIPs: []
+    # - 1.2.3.4

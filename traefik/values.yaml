@@ -181,6 +181,29 @@ ports:
     exposedPort: 9000
     # The port protocol (TCP/UDP)
     protocol: TCP
+  internal:
+    port: 5000
+    # Use hostPort if set.
+    # hostPort: 9000
+    #
+    # Use hostIP if set. If not set, Kubernetes will default to 0.0.0.0, which
+    # means it's listening on all your interfaces and all your IPs. You may want
+    # to set this value if you need traefik to listen on specific interface
+    # only.
+    # hostIP: 192.168.100.10
+
+    # Defines whether the port is exposed if service.type is LoadBalancer or
+    # NodePort.
+    #
+    # You SHOULD NOT expose the traefik port on production deployments.
+    # If you want to access it from outside of your cluster,
+    # use `kubectl proxy` or create a secure ingress
+    expose: false
+    internal: true
+    # The exposed port for this service
+    exposedPort: 5000
+    # The port protocol (TCP/UDP)
+    protocol: TCP
   web:
     port: 8000
     # hostPort: 8000
@@ -207,6 +230,25 @@ ports:
 # Options for the main traefik service, where the entrypoints traffic comes
 # from.
 service:
+  enabled: true
+  type: LoadBalancer
+  # Additional annotations (e.g. for cloud provider specific config)
+  annotations: {}
+  # Additional entries here will be added to the service spec. Cannot contains
+  # type, selector or ports entries.
+  spec: {}
+    # externalTrafficPolicy: Cluster
+    # loadBalancerIP: "1.2.3.4"
+    # clusterIP: "2.3.4.5"
+  loadBalancerSourceRanges: []
+    # - 192.168.0.1/32
+    # - 172.16.0.0/16
+  externalIPs: []
+    # - 1.2.3.4
+
+# Options for the main traefik service, where the entrypoints traffic comes
+# from.
+serviceInternal:
   enabled: true
   type: LoadBalancer
   # Additional annotations (e.g. for cloud provider specific config)
