@@ -1,0 +1,18 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+pool:
+  name: 'Linux'
+
+steps:
+
+- task: Bash@3  
+  name: 'InstallTraefik'
+  inputs:
+    targetType: 'inline'
+    script: |
+      helm upgrade --namespace=traefik -f values.yaml -f ../dev/values.dev.yaml --install traefik . 
+    workingDirectory: 'traefik'
+    noProfile: false
